@@ -1,6 +1,6 @@
 ## Installation
-Manual: Download the code and place it in the `app/Extensions/Gateways/Midtrans` directory.
-Automatic: `git clone https://github.com/NekoMonci12/Paymenter-Midtrans /var/www/paymenter/extensions/Gateways/Midtrans`
+- Manual: Download the code and place it in the `app/Extensions/Gateways/Midtrans` directory.
+- Automatic: `git clone https://github.com/NekoMonci12/Paymenter-Midtrans /var/www/paymenter/extensions/Gateways/Midtrans`
 
 ## Configuration
 In the admin panel, go to `Settings > Payment Gateways` and click on the `Midtrans` gateway. Enter Midtrans `MerchantID`/`Server-Key`/`Client-Key` then `Save`.
