@@ -162,4 +162,12 @@ class Midtrans extends Gateway
 
         return response('OK', 200);
     }
+
+    public function canUseGateway($total, $currency, $type, $items = [])
+    {
+        if ($currency != 'IDR') return false;
+        if ($total < 5000) return false;
+
+        return true;
+    }
 }
