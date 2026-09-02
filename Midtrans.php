@@ -64,7 +64,6 @@ class Midtrans extends Gateway
     public function pay($invoice, $total)
     {
         $orderId = 'PAYMENTER-' . $invoice->id . '-' . substr(hash('sha256', time()), 0, 16);
-        $serverKey = $this->config('server_key');
         $debugMode = $this->config('debug_mode');
 
         $url = $debugMode
@@ -95,7 +94,7 @@ class Midtrans extends Gateway
         $headers = [
             'Accept'        => 'application/json',
             'Content-Type'  => 'application/json',
-            'Authorization' => 'Basic ' . base64_encode($serverKey . ':'),
+            'Authorization' => 'Basic ' . $this->generateAuthKey(),
         ];
 
         $response = Http::withHeaders($headers)->post($url, $payload);
@@ -118,10 +117,59 @@ class Midtrans extends Gateway
 
     }
 
+    /**
+     * Generate Base64 Authorization string for Midtrans API requests.
+     * Formula: Base64(ServerKey + ":")
+     */
+    public function generateAuthKey(?string $serverKey = null): string
+    {
+        $serverKey = $serverKey ?? (string) $this->config('server_key');
+        return base64_encode($serverKey . ':');
+    }
+
+    /**
+     * Generate Midtrans SHA-512 signature key.
+     * Formula: SHA512(order_id + status_code + gross_amount + ServerKey)
+     */
+    public function generateSignature(string $orderId, string $statusCode, string $grossAmount, ?string $serverKey = null): string
+    {
+        $serverKey = $serverKey ?? (string) $this->config('server_key');
+        return hash('sha512', $orderId . $statusCode . $grossAmount . $serverKey);
+    }
+
+    /**
+     * Verify callback signature key from Midtrans notification payload.
+     */
+    public function verifySignature(array $data, ?string $serverKey = null): bool
+    {
+        if (
+            !isset($data['order_id'], $data['status_code'], $data['gross_amount'], $data['signature_key'])
+        ) {
+            return false;
+        }
+
+        $expectedSignature = $this->generateSignature(
+            (string) $data['order_id'],
+            (string) $data['status_code'],
+            (string) $data['gross_amount'],
+            $serverKey
+        );
+
+        return hash_equals($expectedSignature, (string) $data['signature_key']);
+    }
+
     public function webhook(Request $request)
     {
         $data = $request->json()->all();
         \Log::debug('Midtrans webhook payload received:', $data);
+
+        if (!$this->verifySignature($data)) {
+            \Log::warning('Midtrans webhook signature verification failed.', [
+                'order_id' => $data['order_id'] ?? null,
+                'signature_key' => $data['signature_key'] ?? null,
+            ]);
+            return response('Invalid signature', 403);
+        }
 
         if (
             isset($data['status_code'], $data['transaction_status']) &&
