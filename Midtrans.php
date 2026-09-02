@@ -76,14 +76,18 @@ class Midtrans extends Gateway
                 'id'       => $item->id ?? uniqid(),
                 'price'    => round($item->price, 2),
                 'quantity' => $item->quantity ?? 1,
-                'name'     => $item->description ?? 'Item',
+                'name'     => substr($item->description ?? 'Item', 0, 50),
             ];
         })->toArray();
+        
+        $grossAmount = collect($itemDetails)->sum(function ($item) {
+            return $item['price'] * $item['quantity'];
+        });
 
         $payload = [
             'transaction_details' => [
                 'order_id'     => $orderId,
-                'gross_amount' => round($total, 2),
+                'gross_amount' => $grossAmount,
             ],
             'item_details' => $itemDetails,
         ];
